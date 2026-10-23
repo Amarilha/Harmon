@@ -1,0 +1,818 @@
+/* Scoped to the note editor's container (`.maestri-markdown`) so none of this
+ * leaks into the rest of the app — the macOS build ran these in a dedicated
+ * WebView where global selectors (:root / * / html,body) were safe. */
+.maestri-markdown {
+  --base-font-size: 14px;
+  --text-color: #333333;
+  --text-rgb: 51, 51, 51;
+  --link-color: #0068da;
+  /* mac StickyNoteNodeView.resolveNoteFont (:154): the note's body font is the
+   * custom family when one is set and the monospaced system font otherwise.
+   * MarkdownEditor overrides --note-font-family per note; code keeps
+   * --note-font-mono whatever the body font is (StickyNote.swift :23-25). */
+  --note-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --note-font-family: var(--note-font-mono);
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: var(--note-font-family);
+  font-size: var(--base-font-size);
+  color: var(--text-color);
+  line-height: 1.5;
+  -webkit-user-select: text;
+}
+
+.maestri-markdown * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* CodeMirror core overrides */
+.cm-editor {
+  height: 100%;
+  outline: none !important;
+  background: transparent !important;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  line-height: inherit;
+}
+
+.cm-editor .cm-scroller {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px;
+  font-family: inherit !important;
+}
+
+.cm-editor .cm-content {
+  padding: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  caret-color: var(--text-color);
+}
+
+.cm-editor .cm-line {
+  padding: 0;
+}
+
+/* Hide CM6 default cursor styling */
+.cm-editor .cm-cursor {
+  border-left-color: var(--text-color) !important;
+}
+
+/* Selection */
+.cm-editor .cm-selectionBackground {
+  background: rgba(var(--text-rgb), 0.15) !important;
+}
+
+.cm-editor.cm-focused .cm-selectionBackground {
+  background: rgba(var(--text-rgb), 0.2) !important;
+}
+
+/* Active line */
+.cm-editor .cm-activeLine {
+  background: transparent;
+}
+
+/* Placeholder */
+.cm-placeholder {
+  color: rgba(var(--text-rgb), 0.4);
+  pointer-events: none;
+  font-style: italic;
+}
+
+/* === Markdown decoration styles === */
+
+/* Headings */
+.cm-heading {
+  font-weight: bold;
+}
+
+.cm-heading-1 {
+  font-size: calc(var(--base-font-size) + 8px);
+}
+
+.cm-heading-2 {
+  font-size: calc(var(--base-font-size) + 5px);
+}
+
+.cm-heading-3 {
+  font-size: calc(var(--base-font-size) + 3px);
+}
+
+.cm-heading-4 {
+  font-size: calc(var(--base-font-size) + 1px);
+}
+
+.cm-heading-5,
+.cm-heading-6 {
+  font-size: var(--base-font-size);
+}
+
+/* Header marks (# symbols) — faded when visible */
+.cm-header-mark {
+  color: rgba(var(--text-rgb), 0.3);
+}
+
+/* Bold */
+.cm-strong {
+  font-weight: bold;
+}
+
+/* Italic */
+.cm-em {
+  font-style: italic;
+}
+
+/* Strikethrough */
+.cm-strikethrough {
+  text-decoration: line-through;
+}
+
+/* Code stays monospaced whatever the note's body font is (mac
+ * StickyNote.swift :23-25) — a custom family is for prose, and code that
+ * reflows out of its column stops being readable as code. */
+.cm-inline-code,
+.cm-code-block-line,
+.cm-code-fence,
+.cm-code-info,
+.code-block-header {
+  font-family: var(--note-font-mono);
+}
+
+/* Inline code */
+.cm-inline-code {
+  background: rgba(var(--text-rgb), 0.1);
+  border-radius: 3px;
+  padding: 0.1em 0.2em;
+  font-size: 0.95em;
+}
+
+/* Code mark (backticks, emphasis marks when visible) — faded */
+.cm-code-mark {
+  color: rgba(var(--text-rgb), 0.3);
+}
+
+/* Fenced code blocks — line decoration applied per-line */
+.cm-code-block-line {
+  background: rgba(var(--text-rgb), 0.05);
+}
+
+.cm-line:not(.cm-code-block-line) + .cm-code-block-line {
+  padding-top: 4px;
+}
+
+.cm-content > .cm-code-block-line:first-child {
+  padding-top: 4px;
+}
+
+/* Code fence markers (``` lines) */
+.cm-code-fence {
+  color: rgba(var(--text-rgb), 0.35);
+}
+
+/* Code info (language after ```) */
+.cm-code-info {
+  color: rgba(var(--text-rgb), 0.5);
+  font-size: 0.85em;
+}
+
+/* Code block header — inline at end of fence line */
+.code-block-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  float: right;
+  margin-right: 0.3em;
+  user-select: none;
+}
+
+.code-block-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: rgba(var(--text-rgb), 0.45);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.code-block-copy:hover {
+  background: rgba(var(--text-rgb), 0.1);
+  color: rgba(var(--text-rgb), 0.85);
+}
+
+.code-block-copy.copied {
+  color: rgba(var(--text-rgb), 0.85);
+}
+
+.code-block-copy svg {
+  display: block;
+}
+
+/* The menu a copy button opens on a drawn diagram or table.
+ *
+ * On the body, in viewport coordinates (see `createCopyMenuButton`), so it is
+ * NOT scoped to `.maestri-markdown` the way everything else here is: the note is
+ * a clipped, transformed box on the canvas, and a menu laid out inside it would
+ * be cropped by the note's edge and scaled by the canvas zoom. */
+.cm-copy-menu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-node);
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+.cm-copy-menu-item {
+  padding: 5px 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cm-copy-menu-item:hover,
+.cm-copy-menu-item:focus-visible {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* Mermaid diagrams — mac MarkdownDiagramFragment: a filled slab with a hairline
+ * on it, 12pt of padding (MarkdownDiagramLayout.padding), a 6pt corner, and the
+ * drawing centred in it. mac mixes both from the note's accent; ours are the
+ * text token every other block here is built from, so a diagram and the code
+ * block beside it sit on the same slab. */
+.cm-diagram-widget {
+  position: relative;
+  display: block;
+  margin: 0.3em 0;
+  padding: 12px;
+  border: 1px solid rgba(var(--text-rgb), 0.1);
+  border-radius: 6px;
+  background: rgba(var(--text-rgb), 0.05);
+  text-align: center;
+}
+
+/* The fit mac computes as a scale: never wider than the note, never past the
+ * 800pt ceiling, and never blown up past the size it was laid out at. Both caps
+ * apply to a replaced element with an intrinsic ratio, so the diagram keeps its
+ * proportions under either one. */
+.cm-diagram-widget > svg {
+  display: inline-block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 800px;
+}
+
+/* The copy button on a diagram and on a table sits in the block's top-right
+ * corner, mac's `placeCopyButton`, and appears on hover — or whenever it has
+ * keyboard focus, which is the only way to reach it without a pointer. */
+.cm-diagram-widget > .code-block-copy,
+.cm-table-widget > .code-block-copy {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  opacity: 0;
+  transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
+.cm-diagram-widget:hover > .code-block-copy,
+.cm-table-widget:hover > .code-block-copy,
+.cm-diagram-widget > .code-block-copy:focus-visible,
+.cm-table-widget > .code-block-copy:focus-visible,
+.cm-diagram-widget > .code-block-copy[aria-expanded="true"],
+.cm-table-widget > .code-block-copy[aria-expanded="true"] {
+  opacity: 1;
+}
+
+/* Blockquotes — line decoration for vertical bar */
+.cm-blockquote-line {
+  border-left: 2.5px solid rgba(var(--text-rgb), 0.2);
+  padding-left: 10px !important;
+  color: rgba(var(--text-rgb), 0.7);
+}
+
+.cm-quote-mark {
+  color: rgba(var(--text-rgb), 0.25);
+}
+
+/* Links */
+.cm-link {
+  text-decoration: underline;
+  text-decoration-color: rgba(var(--text-rgb), 0.4);
+  text-underline-offset: 2px;
+}
+
+/* A path in the prose that names a file that exists. mac keeps the surface's
+ * own colour here and adds only the underline, exactly as it does for a
+ * detected URL — the underline is what says "link", not a colour change, so a
+ * path reads as part of the sentence until you look for it. */
+.cm-path-link {
+  text-decoration: underline;
+  text-decoration-color: rgba(var(--text-rgb), 0.4);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* An angle-bracket autolink <https://x>. mac paints it in the link colour with
+ * an underline (applyAutolinkStyle) — the author pointed at it, one step up
+ * from a bare URL. */
+.cm-autolink {
+  color: var(--link-color);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* A bare URL the detector found in the prose or inside inline code. mac keeps
+ * the surface's own colour and adds only the underline, exactly as it does for
+ * a detected path — the underline is what says "link", not a colour change. */
+.cm-detected-link {
+  text-decoration: underline;
+  text-decoration-color: rgba(var(--text-rgb), 0.4);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* List marks */
+.cm-list-mark {
+  color: rgba(var(--text-rgb), 0.4);
+}
+
+/* Images */
+.cm-image-widget {
+  margin: 0.3em 0;
+}
+
+.cm-image-widget img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+/* Checked task text */
+.cm-task-checked {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+/* Horizontal rules */
+.cm-hr {
+  color: rgba(var(--text-rgb), 0.25);
+}
+
+.cm-hr-widget {
+  border: none;
+  border-top: 1px solid rgba(var(--text-rgb), 0.2);
+  margin: 0.3em 0;
+}
+
+/* Table delimiters (raw mode when cursor is in table) */
+.cm-table-delimiter {
+  color: rgba(var(--text-rgb), 0.3);
+}
+
+/* Table widget (rendered when cursor is outside) */
+/* MarkdownTableMetricsV2: points map directly to px, independent of root rem size. */
+.cm-table-widget {
+  position: relative;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  margin: 8px 0;
+  overflow-x: auto;
+  /* Its width is the line's to give, never the table's to take: contained,
+     the table adds nothing to the content's min-content, so the content (a
+     flex item of the scroller) can always be as narrow as it's offered, in a
+     chat reply and in a note made narrower. */
+  contain: inline-size;
+}
+
+/* CodeMirror draws a 1em buffer image either side of an inline widget. Beside
+   the block-level table each sat alone in a line box: a blank line above the
+   table and another below. The cursor never stands beside a table (on it,
+   the source shows), so they go there. */
+.cm-line:has(> .cm-table-widget) .cm-widgetBuffer {
+  display: none;
+}
+
+.cm-table-widget table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 96px;
+  table-layout: fixed;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.cm-table-widget th,
+.cm-table-widget td {
+  border: 0.5px solid rgba(var(--text-rgb), 0.10);
+  padding: 7px 10px;
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+}
+
+.cm-table-widget th {
+  font-weight: bold;
+  background: rgba(var(--text-rgb), 0.06);
+  border-bottom-width: 1px;
+}
+
+/* A cell's words break only where they're spaced, and a word too long for its
+   column on a line of its own breaks inside it rather than running over the
+   next column (break-word, not anywhere: it leaves the min-content the column
+   allocation measures alone). The same in a note and a chat reply, inline
+   code included, whatever the surrounding prose's own wrapping. */
+.cm-table-widget th *,
+.cm-table-widget td * {
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+}
+
+/* A transient clone for natural widths; removed as soon as it has been measured. */
+.cm-table-widget .cm-table-measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+  table-layout: auto;
+  min-width: 0;
+}
+
+.cm-table-measure-text {
+  display: inline-block;
+  width: max-content;
+  white-space: pre;
+}
+
+/* A cell a double-click picked out in a read-only view, in the selection colour. */
+.cm-table-widget td.cm-table-cell-selected,
+.cm-table-widget th.cm-table-cell-selected {
+  background: rgba(var(--text-rgb), 0.2);
+}
+
+/* Let macOS native overlay scrollbars handle visibility */
+
+/* Hide CM6 default gutter and other chrome.
+ *
+ * SCOPED, and it has to be. Unscoped this said "no CodeMirror in this app has a
+ * gutter", and the note editor installs no gutter extension at all — so the
+ * only thing this rule ever hid was the FILE TREE EDITOR'S line numbers, which
+ * are installed by editor-extensions.ts and were simply painted out from
+ * another node's stylesheet. It stays rather than being deleted because the
+ * intent above it is still the note's: a sticky note is prose, and if it ever
+ * gains a gutter extension it should still have no gutter. */
+.maestri-markdown .cm-editor .cm-gutters {
+  display: none;
+}
+/**
+ * Copyright (c) 2014 The xterm.js authors. All rights reserved.
+ * Copyright (c) 2012-2013, Christopher Jeffrey (MIT License)
+ * https://github.com/chjj/term.js
+ * @license MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * Originally forked from (with the author's permission):
+ *   Fabrice Bellard's javascript vt100 for jslinux:
+ *   http://bellard.org/jslinux/
+ *   Copyright (c) 2011 Fabrice Bellard
+ *   The original design remains. The terminal itself
+ *   has been extended to include xterm CSI codes, among
+ *   other features.
+ */
+
+/**
+ *  Default styles for xterm.js
+ */
+
+.xterm {
+    cursor: text;
+    position: relative;
+    user-select: none;
+    -ms-user-select: none;
+    -webkit-user-select: none;
+}
+
+.xterm.focus,
+.xterm:focus {
+    outline: none;
+}
+
+.xterm .xterm-helpers {
+    position: absolute;
+    top: 0;
+    /**
+     * The z-index of the helpers must be higher than the canvases in order for
+     * IMEs to appear on top.
+     */
+    z-index: 5;
+}
+
+.xterm .xterm-helper-textarea {
+    padding: 0;
+    border: 0;
+    margin: 0;
+    /* Move textarea out of the screen to the far left, so that the cursor is not visible */
+    position: absolute;
+    opacity: 0;
+    left: -9999em;
+    top: 0;
+    width: 0;
+    height: 0;
+    z-index: -5;
+    /** Prevent wrapping so the IME appears against the textarea at the correct position */
+    white-space: nowrap;
+    overflow: hidden;
+    resize: none;
+}
+
+.xterm .composition-view {
+    /* TODO: Composition position got messed up somewhere */
+    background: #000;
+    color: #FFF;
+    display: none;
+    position: absolute;
+    white-space: nowrap;
+    z-index: 1;
+}
+
+.xterm .composition-view.active {
+    display: block;
+}
+
+.xterm .xterm-viewport {
+    /* On OS X this is required in order for the scroll bar to appear fully opaque */
+    background-color: #000;
+    overflow-y: scroll;
+    cursor: default;
+    position: absolute;
+    right: 0;
+    left: 0;
+    top: 0;
+    bottom: 0;
+}
+
+.xterm .xterm-screen {
+    position: relative;
+}
+
+.xterm .xterm-screen canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.xterm .xterm-scroll-area {
+    visibility: hidden;
+}
+
+.xterm-char-measure-element {
+    display: inline-block;
+    visibility: hidden;
+    position: absolute;
+    top: 0;
+    left: -9999em;
+    line-height: normal;
+}
+
+.xterm.enable-mouse-events {
+    /* When mouse events are enabled (eg. tmux), revert to the standard pointer cursor */
+    cursor: default;
+}
+
+.xterm.xterm-cursor-pointer,
+.xterm .xterm-cursor-pointer {
+    cursor: pointer;
+}
+
+.xterm.column-select.focus {
+    /* Column selection mode */
+    cursor: crosshair;
+}
+
+.xterm .xterm-accessibility:not(.debug),
+.xterm .xterm-message {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    z-index: 10;
+    color: transparent;
+    pointer-events: none;
+}
+
+.xterm .xterm-accessibility-tree:not(.debug) *::selection {
+  color: transparent;
+}
+
+.xterm .xterm-accessibility-tree {
+  user-select: text;
+  white-space: pre;
+}
+
+.xterm .live-region {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+.xterm-dim {
+    /* Dim should not apply to background, so the opacity of the foreground color is applied
+     * explicitly in the generated class and reset to 1 here */
+    opacity: 1 !important;
+}
+
+.xterm-underline-1 { text-decoration: underline; }
+.xterm-underline-2 { text-decoration: double underline; }
+.xterm-underline-3 { text-decoration: wavy underline; }
+.xterm-underline-4 { text-decoration: dotted underline; }
+.xterm-underline-5 { text-decoration: dashed underline; }
+
+.xterm-overline {
+    text-decoration: overline;
+}
+
+.xterm-overline.xterm-underline-1 { text-decoration: overline underline; }
+.xterm-overline.xterm-underline-2 { text-decoration: overline double underline; }
+.xterm-overline.xterm-underline-3 { text-decoration: overline wavy underline; }
+.xterm-overline.xterm-underline-4 { text-decoration: overline dotted underline; }
+.xterm-overline.xterm-underline-5 { text-decoration: overline dashed underline; }
+
+.xterm-strikethrough {
+    text-decoration: line-through;
+}
+
+.xterm-screen .xterm-decoration-container .xterm-decoration {
+	z-index: 6;
+	position: absolute;
+}
+
+.xterm-screen .xterm-decoration-container .xterm-decoration.xterm-decoration-top-layer {
+	z-index: 7;
+}
+
+.xterm-decoration-overview-ruler {
+    z-index: 8;
+    position: absolute;
+    top: 0;
+    right: 0;
+    pointer-events: none;
+}
+
+.xterm-decoration-top {
+    z-index: 2;
+    position: relative;
+}
+/*
+ * The chat's colour vocabulary.
+ *
+ * A chat face forces its own colour scheme from the TERMINAL theme's background,
+ * not from the app's appearance (mac TerminalNodeView.swift:131-135, :588): a dark
+ * theme on a light app would otherwise draw dark text on near-black. So nothing
+ * inside the chat reads the app tokens (`--foreground`, `--muted-foreground`);
+ * everything reads these, and `data-chat-scheme` on the surface decides which
+ * half of each `light-dark()` pair resolves.
+ *
+ * The label ramp is AppKit's catalog (labelColor, secondaryLabelColor,
+ * tertiaryLabelColor, quaternaryLabelColor); SwiftUI's `.primary` is the opaque
+ * end of it. The bubble fills are read from mac source (ChatBubble.swift:128-158).
+ */
+
+.chat-surface {
+  --chat-primary: light-dark(#000000, #ffffff);
+  --chat-label: light-dark(rgb(0 0 0 / 0.85), rgb(255 255 255 / 0.85));
+  --chat-secondary: light-dark(rgb(0 0 0 / 0.5), rgb(255 255 255 / 0.55));
+  --chat-tertiary: light-dark(rgb(0 0 0 / 0.26), rgb(255 255 255 / 0.25));
+  --chat-quaternary: light-dark(rgb(0 0 0 / 0.1), rgb(255 255 255 / 0.1));
+
+  /* systemBlue: the outgoing bubble with no terminal colour, the diagram accent
+     with none, and thread slot 1 under mac's "no accent" path (ChatThread.swift:53-55). */
+  --chat-system-blue: light-dark(#007aff, #0a84ff);
+  /* SwiftUI `.green`, systemGreen: the copy controls' checkmark
+     (ChatCodeBlock.swift:118, :246). */
+  --chat-system-green: light-dark(#34c759, #30d158);
+  /* Messages' incoming grays exactly (ChatBubble.swift:135-143). */
+  --chat-bubble-incoming: light-dark(#e9e9eb, #3b3b3e);
+
+  color: var(--chat-label);
+}
+
+/*
+ * A sent message's attachment pills are the composer's own DOM, tinted with the
+ * app's secondary label and border tokens. Inside a user bubble those resolve
+ * from the bubble's own light-or-dark decision instead, as mac sets the text
+ * view's appearance from it (db92478c, ChatSelectableText.swift): the same two
+ * values the app theme uses in light and in dark, chosen by the bubble.
+ */
+[data-chat-bubble-appearance='dark'] {
+  --muted-foreground: rgba(235, 235, 245, 0.6);
+  --border: rgba(84, 84, 88, 0.5);
+}
+
+[data-chat-bubble-appearance='light'] {
+  --muted-foreground: rgba(60, 60, 67, 0.6);
+  --border: rgba(0, 0, 0, 0.12);
+}
+
+/*
+ * A reply's prose runs through the notes' markdown editor (mac ChatMarkdownField:
+ * "there is one markdown engine in this app"). A note fills its frame and scrolls;
+ * a bubble hugs its words and is scrolled by the thread. These undo exactly the
+ * note-shaped parts, and nothing that decides how markdown looks.
+ */
+.maestri-markdown.chat-prose {
+  height: auto;
+  overflow: visible;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--chat-label);
+  --text-color: var(--chat-label);
+}
+
+.maestri-markdown.chat-prose .cm-editor {
+  height: auto;
+}
+
+.maestri-markdown.chat-prose .cm-editor .cm-scroller {
+  overflow: visible;
+  padding: 0;
+}
+
+/*
+ * A node the person is not working in has no claim on the wheel: panning across
+ * a wall of chat nodes must pan (mac CanvasViewportView.swift, gui-mode diff
+ * `+469-476`). The canvas already routes the wheel that way; this takes the
+ * thread out of the running as a scroll target too, the way global.css does for
+ * an idle terminal's viewport, so a precision touchpad on Windows cannot scroll
+ * it off the main thread past the pan. Its offset stays writable.
+ */
+[data-chat-face][data-chat-active='false'] [data-chat-thread] {
+  overflow-y: hidden;
+}
+
+/*
+ * Find's current match in the conversation, mac's `NSColor.findHighlightColor`
+ * (ChatFindController.swift:220-238): the system's find yellow, laid under the
+ * words without touching the text or the selection.
+ */
+::highlight(chat-find) {
+  background-color: rgb(255 255 0 / 0.6);
+}
+
+.chat-surface[data-chat-scheme='light'] {
+  color-scheme: light;
+}
+
+.chat-surface[data-chat-scheme='dark'] {
+  color-scheme: dark;
+}

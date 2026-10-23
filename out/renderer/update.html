@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      Stricter than the app's own policy, because this document renders text
+      that came off a network feed. `default-src 'none'` means anything not
+      named below is refused outright: no fetch, no XHR, no websocket, no
+      frame, no plugin. Scripts are 'self' only, so an inline <script> in the
+      notes cannot execute even if the sanitiser ever let one through. Images
+      and fonts are 'self' and data: for OUR bundled assets; the notes never
+      emit either.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Maestri</title>
+    <script type="module" crossorigin src="./assets/update-DZO6LTa0.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/global-DRL_rtBl.js">
+    <link rel="stylesheet" crossorigin href="./assets/global-B1Ub1_5h.css">
+    <link rel="stylesheet" crossorigin href="./assets/update-ElWflD33.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

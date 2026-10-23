@@ -1,0 +1,1 @@
+import{workerData as r,parentPort as s}from"node:worker_threads";import{s as o}from"./chat-transcript-reader-B0jkg7y2.js";import"node:fs";globalThis.__MAESTRI_BUILD_SHA__="1bf806c58255ee745382a65848e9698af74aba67";const e=[];o(r,a=>((a.kind==="message"||a.kind==="final")&&e.push(a),!0)).then(()=>s?.postMessage(e.reverse()));

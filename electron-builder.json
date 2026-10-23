@@ -1,0 +1,8 @@
+{
+  "appId": "com.maestri.app",
+  "productName": "Maestri",
+  "electronVersion": "45.0.0",
+  "win": {
+    "target": "nsis"
+  }
+}

@@ -1,0 +1,157 @@
+var __defProp = Object.defineProperty;
+var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+globalThis.__MAESTRI_BUILD_SHA__ = "1bf806c58255ee745382a65848e9698af74aba67";
+function words(str) {
+  var obj = {}, words2 = str.split(" ");
+  for (var i = 0; i < words2.length; ++i)
+    obj[words2[i]] = true;
+  return obj;
+}
+__name(words, "words");
+var keywords = words("algorithm and annotation assert block break class connect connector constant constrainedby der discrete each else elseif elsewhen encapsulated end enumeration equation expandable extends external false final flow for function if import impure in initial inner input loop model not operator or outer output package parameter partial protected public pure record redeclare replaceable return stream then true type when while within");
+var builtin = words("abs acos actualStream asin atan atan2 cardinality ceil cos cosh delay div edge exp floor getInstanceName homotopy inStream integer log log10 mod pre reinit rem semiLinear sign sin sinh spatialDistribution sqrt tan tanh");
+var atoms = words("Real Boolean Integer String");
+var completions = [].concat(Object.keys(keywords), Object.keys(builtin), Object.keys(atoms));
+var isSingleOperatorChar = /[;=\(:\),{}.*<>+\-\/^\[\]]/;
+var isDoubleOperatorChar = /(:=|<=|>=|==|<>|\.\+|\.\-|\.\*|\.\/|\.\^)/;
+var isDigit = /[0-9]/;
+var isNonDigit = /[_a-zA-Z]/;
+function tokenLineComment(stream, state) {
+  stream.skipToEnd();
+  state.tokenize = null;
+  return "comment";
+}
+__name(tokenLineComment, "tokenLineComment");
+function tokenBlockComment(stream, state) {
+  var maybeEnd = false, ch;
+  while (ch = stream.next()) {
+    if (maybeEnd && ch == "/") {
+      state.tokenize = null;
+      break;
+    }
+    maybeEnd = ch == "*";
+  }
+  return "comment";
+}
+__name(tokenBlockComment, "tokenBlockComment");
+function tokenString(stream, state) {
+  var escaped = false, ch;
+  while ((ch = stream.next()) != null) {
+    if (ch == '"' && !escaped) {
+      state.tokenize = null;
+      state.sol = false;
+      break;
+    }
+    escaped = !escaped && ch == "\\";
+  }
+  return "string";
+}
+__name(tokenString, "tokenString");
+function tokenIdent(stream, state) {
+  stream.eatWhile(isDigit);
+  while (stream.eat(isDigit) || stream.eat(isNonDigit)) {
+  }
+  var cur = stream.current();
+  if (state.sol && (cur == "package" || cur == "model" || cur == "when" || cur == "connector")) state.level++;
+  else if (state.sol && cur == "end" && state.level > 0) state.level--;
+  state.tokenize = null;
+  state.sol = false;
+  if (keywords.propertyIsEnumerable(cur)) return "keyword";
+  else if (builtin.propertyIsEnumerable(cur)) return "builtin";
+  else if (atoms.propertyIsEnumerable(cur)) return "atom";
+  else return "variable";
+}
+__name(tokenIdent, "tokenIdent");
+function tokenQIdent(stream, state) {
+  while (stream.eat(/[^']/)) {
+  }
+  state.tokenize = null;
+  state.sol = false;
+  if (stream.eat("'"))
+    return "variable";
+  else
+    return "error";
+}
+__name(tokenQIdent, "tokenQIdent");
+function tokenUnsignedNumber(stream, state) {
+  stream.eatWhile(isDigit);
+  if (stream.eat(".")) {
+    stream.eatWhile(isDigit);
+  }
+  if (stream.eat("e") || stream.eat("E")) {
+    if (!stream.eat("-"))
+      stream.eat("+");
+    stream.eatWhile(isDigit);
+  }
+  state.tokenize = null;
+  state.sol = false;
+  return "number";
+}
+__name(tokenUnsignedNumber, "tokenUnsignedNumber");
+const modelica = {
+  name: "modelica",
+  startState: /* @__PURE__ */ __name(function() {
+    return {
+      tokenize: null,
+      level: 0,
+      sol: true
+    };
+  }, "startState"),
+  token: /* @__PURE__ */ __name(function(stream, state) {
+    if (state.tokenize != null) {
+      return state.tokenize(stream, state);
+    }
+    if (stream.sol()) {
+      state.sol = true;
+    }
+    if (stream.eatSpace()) {
+      state.tokenize = null;
+      return null;
+    }
+    var ch = stream.next();
+    if (ch == "/" && stream.eat("/")) {
+      state.tokenize = tokenLineComment;
+    } else if (ch == "/" && stream.eat("*")) {
+      state.tokenize = tokenBlockComment;
+    } else if (isDoubleOperatorChar.test(ch + stream.peek())) {
+      stream.next();
+      state.tokenize = null;
+      return "operator";
+    } else if (isSingleOperatorChar.test(ch)) {
+      state.tokenize = null;
+      return "operator";
+    } else if (isNonDigit.test(ch)) {
+      state.tokenize = tokenIdent;
+    } else if (ch == "'" && stream.peek() && stream.peek() != "'") {
+      state.tokenize = tokenQIdent;
+    } else if (ch == '"') {
+      state.tokenize = tokenString;
+    } else if (isDigit.test(ch)) {
+      state.tokenize = tokenUnsignedNumber;
+    } else {
+      state.tokenize = null;
+      return "error";
+    }
+    return state.tokenize(stream, state);
+  }, "token"),
+  indent: /* @__PURE__ */ __name(function(state, textAfter, cx) {
+    if (state.tokenize != null) return null;
+    var level = state.level;
+    if (/(algorithm)/.test(textAfter)) level--;
+    if (/(equation)/.test(textAfter)) level--;
+    if (/(initial algorithm)/.test(textAfter)) level--;
+    if (/(initial equation)/.test(textAfter)) level--;
+    if (/(end)/.test(textAfter)) level--;
+    if (level > 0)
+      return cx.unit * level;
+    else
+      return 0;
+  }, "indent"),
+  languageData: {
+    commentTokens: { line: "//", block: { open: "/*", close: "*/" } },
+    autocomplete: completions
+  }
+};
+export {
+  modelica
+};

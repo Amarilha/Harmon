@@ -1,0 +1,113 @@
+/* The app's shell is `height: 100%` because it fills its window. This one is
+ * the opposite: the WINDOW is sized to the content, so the document has to be
+ * free to be its natural height for main to have anything to measure.
+ *
+ * `overflow: visible` is the LAST RESORT, and it is deliberate. global.css sets
+ * `overflow: hidden` on these three because the app's shell scrolls its own
+ * panes; inherited here it meant that a window shorter than its content had no
+ * scrollbar of any kind, so whatever fell past the bottom edge was gone. That
+ * is how one wrong number became content the user could not reach at all.
+ *
+ * The dialog's own layout is what should absorb a bad height — fixed chrome,
+ * one flexible middle — and in practice this never engages. It exists so that
+ * if some future change does overflow the window anyway, the page scrolls and
+ * the user is inconvenienced rather than stranded. */
+html,
+body,
+#root {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* Typography for the sanitised release notes.
+ *
+ * Scoped to `.update-notes` and written as element selectors on purpose: the
+ * notes are built as bare DOM nodes by the sanitiser, which strips every class
+ * and every style attribute, so this is the only thing that can style them.
+ * Nothing here can be reached from the feed's side. */
+
+.update-notes > *:first-child {
+  margin-top: 0;
+}
+
+.update-notes h1,
+.update-notes h2,
+.update-notes h3,
+.update-notes h4 {
+  margin: 14px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.update-notes p {
+  margin: 0 0 8px;
+}
+
+.update-notes ul,
+.update-notes ol {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+.update-notes ul {
+  list-style: disc;
+}
+
+.update-notes ol {
+  list-style: decimal;
+}
+
+.update-notes li {
+  margin: 2px 0;
+}
+
+.update-notes blockquote {
+  margin: 0 0 8px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.update-notes code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  font-family: var(--note-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11.5px;
+}
+
+.update-notes pre {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+.update-notes pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.update-notes hr {
+  margin: 12px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.update-notes a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* A link the sanitiser refused to trust keeps its words and loses its
+ * destination, so it must not keep pretending to be clickable. */
+.update-notes a:not([href]) {
+  color: inherit;
+  text-decoration: none;
+  cursor: default;
+}
